@@ -9,6 +9,7 @@ const closeAdjustBtns = document.querySelectorAll(".close-adjustment");
 const sliderContainers = document.querySelectorAll(".sliders");
 const lockButtons = document.querySelectorAll(".lock");
 let initialColors;
+
 //LocalStorage obj
 let savedPalettes = [];
 
@@ -18,6 +19,7 @@ generateBtn.addEventListener("click", randomColors);
 sliders.forEach((slider) => {
   slider.addEventListener("input", hslControls);
 });
+
 colorDivs.forEach((div, index) => {
   div.addEventListener("change", () => {
     updateTextUI(index);
@@ -62,12 +64,14 @@ function generateHex() {
   return hexColor;
 }
 
+//Generate output
 function randomColors() {
   //Initial colors
   initialColors = [];
   colorDivs.forEach((div) => {
     const hexText = div.children[0];
     const randomColor = generateHex();
+
     //Add initial colors to the array
     if (div.classList.contains("locked")) {
       initialColors.push(hexText.innerText);
@@ -75,21 +79,22 @@ function randomColors() {
     } else {
       initialColors.push(chroma(randomColor).hex());
     }
+
     //Add color to the background
     div.style.backgroundColor = randomColor;
     hexText.innerText = randomColor;
-    //Check for contrast
     checkTextContrast(randomColor, hexText);
+
     //Initialize colorize sliders
     const color = chroma(randomColor);
     const sliders = div.querySelectorAll(".sliders input");
     const hue = sliders[0];
     const brightness = sliders[1];
     const saturation = sliders[2];
-
     colorizeAndResetSliders(color, hue, brightness, saturation);
   });
   resetSliders();
+
   //Check For Button Contrast
   adjustBtns.forEach((button, index) => {
     checkTextContrast(initialColors[index], button);
@@ -97,6 +102,7 @@ function randomColors() {
   });
 }
 
+//Check for contrast
 function checkTextContrast(color, text) {
   const luminance = chroma(color).luminance();
   if (luminance > 0.5) {
@@ -106,11 +112,13 @@ function checkTextContrast(color, text) {
   }
 }
 
+//Update colors in sliders
 function colorizeAndResetSliders(color, hue, brightness, saturation) {
   //Scale saturation
   const noSat = color.set("hsl.s", 0);
   const fullSat = color.set("hsl.s", 1);
   const scaleSat = chroma.scale([noSat, color, fullSat]);
+
   //Scale brightness
   const midBright = color.set("hsl.l", 0.5);
   const scaleBright = chroma.scale(["black", midBright, "white"]);
@@ -130,28 +138,26 @@ function colorizeAndResetSliders(color, hue, brightness, saturation) {
   hue.value = color.hsl()[0];
 }
 
+//Event of slider
 function hslControls(e) {
   const index =
     e.target.getAttribute("data-brightness") ||
     e.target.getAttribute("data-saturation") ||
     e.target.getAttribute("data-hue");
-
   let sliders = e.target.parentElement.querySelectorAll('input[type="range"]');
   const hue = sliders[0];
   const brightness = sliders[1];
   const saturation = sliders[2];
-
   const bgColor = initialColors[index];
-
   let color = chroma(bgColor)
     .set("hsl.s", saturation.value)
     .set("hsl.l", brightness.value)
     .set("hsl.h", hue.value);
-
   colorDivs[index].style.backgroundColor = color;
   colorizeAndResetSliders(color, hue, brightness, saturation);
 }
 
+//Update text
 function updateTextUI(index) {
   const activeDiv = colorDivs[index];
   const color = chroma(activeDiv.style.backgroundColor);
@@ -165,6 +171,7 @@ function updateTextUI(index) {
   }
 }
 
+//Resetting slider values to its colors value
 function resetSliders() {
   sliders.forEach((slider) => {
     const color = initialColors[slider.getAttribute(`data-${slider.name}`)],
@@ -186,6 +193,7 @@ function resetSliders() {
   });
 }
 
+//Copying text to clipboard
 function copyToClipboard(hex) {
   navigator.clipboard.writeText(hex.innerText);
   const popupBox = popup.children[0];
@@ -245,8 +253,16 @@ function savePalette(e) {
   currentHexes.forEach((hex) => {
     colors.push(hex.innerText);
   });
+
   //Generate object
-  let paletteNr = savedPalettes.length;
+  let paletteNr;
+  const paletteObjects = JSON.parse(localStorage.getItem("palettes"));
+  if (paletteObjects) {
+    paletteNr = paletteObjects.length;
+  } else {
+    paletteNr = savedPalettes.length;
+  }
+
   const paletteObj = { name, colors, nr: paletteNr };
   savedPalettes.push(paletteObj);
   //Save to localStorage
@@ -275,6 +291,7 @@ function savePalette(e) {
     const paletteIndex = e.target.classList[1];
     initialColors = [];
     savedPalettes[paletteIndex].colors.forEach((color, index) => {
+      libraryUpdate(color, index);
       initialColors.push(color);
       colorDivs[index].style.backgroundColor = color;
       const text = colorDivs[index].children[0];
@@ -302,6 +319,55 @@ function saveToLocal(paletteObj) {
   localStorage.setItem("palettes", JSON.stringify(localPalettes)); //Set items to LocalStorage
 }
 
+function getLocal() {
+  if (localStorage.getItem("palettes") == null) {
+    localPalettes = [];
+  } else {
+    const paletteObjects = JSON.parse(localStorage.getItem("palettes"));
+    savedPalettes = [...paletteObjects];
+    paletteObjects.forEach((paletteObj) => {
+      //Generate the palette for library
+      const palette = document.createElement("div");
+      palette.classList.add("custom-palette");
+      const title = document.createElement("h4");
+      title.innerText = paletteObj.name;
+      const preview = document.createElement("div");
+      preview.classList.add("small-preview");
+      paletteObj.colors.forEach((smallColor) => {
+        const smallDiv = document.createElement("div");
+        smallDiv.style.backgroundColor = smallColor;
+        preview.appendChild(smallDiv);
+      });
+      const paletteBtn = document.createElement("button");
+      paletteBtn.classList.add("pick-palette-btn");
+      paletteBtn.classList.add(paletteObj.nr);
+      paletteBtn.innerText = "Select";
+
+      //Attach event to the btn
+      paletteBtn.addEventListener("click", (e) => {
+        closeLibrary();
+        const paletteIndex = e.target.classList[1];
+        initialColors = [];
+        paletteObjects[paletteIndex].colors.forEach((color, index) => {
+          libraryUpdate(color, index);
+          initialColors.push(color);
+          colorDivs[index].style.backgroundColor = color;
+          const text = colorDivs[index].children[0];
+          checkTextContrast(color, text);
+          updateTextUI(index);
+        });
+        resetSliders();
+      });
+
+      //Append to the library
+      palette.appendChild(title);
+      palette.appendChild(preview);
+      palette.appendChild(paletteBtn);
+      libraryContainer.children[0].appendChild(palette);
+    });
+  }
+}
+
 function openLibrary() {
   const popup = libraryContainer.children[0];
   libraryContainer.classList.add("active");
@@ -314,4 +380,19 @@ function closeLibrary() {
   popup.classList.remove("active");
 }
 
+function libraryUpdate(color, index) {
+  const c = chroma(color);
+  const hue = sliderContainers[index].querySelectorAll(
+    "input[type='range']"
+  )[0];
+  const brightness = sliderContainers[index].querySelectorAll(
+    "input[type='range']"
+  )[1];
+  const saturation = sliderContainers[index].querySelectorAll(
+    "input[type='range']"
+  )[2];
+  colorizeAndResetSliders(c, hue, brightness, saturation);
+}
+
+getLocal();
 randomColors();
