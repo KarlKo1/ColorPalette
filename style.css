@@ -240,18 +240,25 @@ input[type="range"] {
 }
 
 /* Media Queries */
-@media only screen and (max-width: 600px) {
+@media only screen and (max-width: 700px) {
   .colors {
-    min-height: 70vh;
+    min-height: 80vh;
+    flex-direction: column;
   }
   .color {
     height: 60vh;
   }
   .panel button {
-    padding: 1.5rem 2.5rem;
-    font-size: 2.2rem;
+    padding: 0.5rem 1.5rem;
+    font-size: 1.2rem;
   }
   .color h2 {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
+  }
+  .controls {
+    display: none;
+  }
+  .custom-palette {
+    padding: 0;
   }
 }
